@@ -1,0 +1,38 @@
+# 12: GET _enrich/policy/user-type 200 OK
+{
+  "policies": [
+    {
+      "config": {
+        "match": {
+          "name": "user-type",
+          "indices": [
+            "user-info"
+          ],
+          "match_field": "name",
+          "enrich_fields": [
+            "type"
+          ]
+        }
+      }
+    }
+  ]
+}
+# 13: GET _enrich/policy/accounts-policy-v1 200 OK
+{
+  "policies": [
+    {
+      "config": {
+        "match": {
+          "name": "accounts-policy-v1",
+          "indices": [
+            "accounts"
+          ],
+          "match_field": "id",
+          "enrich_fields": [
+            "name"
+          ]
+        }
+      }
+    }
+  ]
+}
