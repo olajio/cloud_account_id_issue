@@ -1,0 +1,23 @@
+{
+  "component_templates": [
+    {
+      "name": "filebeat_mt_default_component",
+      "component_template": {
+        "template": {
+          "settings": {
+            "index": {
+              "default_pipeline": "filebeat_mt_default"
+            }
+          },
+          "mappings": {
+            "properties": {
+              "ts": {
+                "type": "date"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
