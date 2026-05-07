@@ -1,0 +1,165 @@
+# 5: GET _ingest/pipeline/filebeat_mt_default 200 OK
+{
+  "filebeat_mt_default": {
+    "processors": [
+      {
+        "pipeline": {
+          "name": "enrich_cloud_name",
+          "ignore_failure": true
+        }
+      },
+      {
+        "pipeline": {
+          "name": "enrich_user_type"
+        }
+      },
+      {
+        "pipeline": {
+          "name": "calculate_lag",
+          "ignore_failure": true
+        }
+      }
+    ]
+  }
+}
+# 6: GET _ingest/pipeline/enrich_cloud_name 200 OK
+{
+  "enrich_cloud_name": {
+    "description": "adds cloud account name to any document that has cloud account id",
+    "processors": [
+      {
+        "dot_expander": {
+          "field": "cloud.account.id",
+          "if": "ctx.containsKey('cloud.account.id')"
+        }
+      },
+      {
+        "pipeline": {
+          "name": "accounts_lookup",
+          "if": "ctx.cloud?.account?.id != null && ctx.cloud?.account?.name == null"
+        }
+      }
+    ]
+  }
+}
+# 7: GET _ingest/pipeline/enrich_user_type 200 OK
+{
+  "enrich_user_type": {
+    "description": "Enriches documents with user type information",
+    "processors": [
+      {
+        "lowercase": {
+          "ignore_failure": true,
+          "ignore_missing": true,
+          "field": "user.name"
+        }
+      },
+      {
+        "enrich": {
+          "ignore_failure": true,
+          "policy_name": "user-type",
+          "ignore_missing": true,
+          "field": "user.name",
+          "target_field": "user"
+        }
+      },
+      {
+        "set": {
+          "ignore_failure": true,
+          "override": false,
+          "field": "user.type",
+          "value": "undefined",
+          "if": "ctx?.user?.name != null && ctx?.user?.type == null"
+        }
+      }
+    ]
+  }
+}
+# 8: GET _ingest/pipeline/calculate_lag 200 OK
+{
+  "calculate_lag": {
+    "description": "Add an ingest timestamp and calculate ingest lag",
+    "processors": [
+      {
+        "set": {
+          "ignore_failure": true,
+          "ignore_empty_value": true,
+          "field": "event.ingested",
+          "value": "{{_ingest.timestamp}}"
+        }
+      },
+      {
+        "script": {
+          "ignore_failure": true,
+          "source": """if(ctx.event.containsKey("ingested") && ctx.containsKey("@timestamp")) { 
+  ctx['labels.lag_in_seconds'] = ChronoUnit.MILLIS.between(ZonedDateTime.parse(ctx['@timestamp']), ZonedDateTime.parse(ctx.event.ingested))/1000; 
+}"""
+        }
+      },
+      {
+        "pipeline": {
+          "name": "enrich_user_type",
+          "ignore_failure": true,
+          "if": "ctx?.user?.name != null"
+        }
+      }
+    ]
+  }
+}
+# 9: GET _ingest/pipeline/accounts_lookup 200 OK
+{
+  "accounts_lookup": {
+    "processors": [
+      {
+        "enrich": {
+          "ignore_failure": true,
+          "on_failure": [
+            {
+              "set": {
+                "field": "ingest.error",
+                "value": "{{ _ingest.on_failure_message }}"
+              }
+            }
+          ],
+          "field": "cloud.account.id",
+          "target_field": "cloud.account",
+          "policy_name": "accounts-policy-v1",
+          "description": "Adding cloud account name if cloud account id exist"
+        }
+      }
+    ]
+  }
+}
+# 10: GET _ingest/pipeline/enrich_user_type 200 OK
+{
+  "enrich_user_type": {
+    "description": "Enriches documents with user type information",
+    "processors": [
+      {
+        "lowercase": {
+          "ignore_failure": true,
+          "ignore_missing": true,
+          "field": "user.name"
+        }
+      },
+      {
+        "enrich": {
+          "ignore_failure": true,
+          "policy_name": "user-type",
+          "ignore_missing": true,
+          "field": "user.name",
+          "target_field": "user"
+        }
+      },
+      {
+        "set": {
+          "ignore_failure": true,
+          "override": false,
+          "field": "user.type",
+          "value": "undefined",
+          "if": "ctx?.user?.name != null && ctx?.user?.type == null"
+        }
+      }
+    ]
+  }
+}
